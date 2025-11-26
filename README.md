@@ -12,7 +12,6 @@ albums for all your users.
 ## Setup
 
 Take a copy of the [docker-compose.yml](https://github.com/alangrainger/immich-person-to-album/blob/main/docker-compose.yml) file.
-
 ```yaml
 services:
   immich-person-to-album:
@@ -33,7 +32,6 @@ There are two methods for specifying the config options:
 ### ...or via Inline configuration
 
 Alternatively, you can add the configuration inline in your `docker-compose.yml` file like this:
-
 ```yaml
     volumes:
       - ./data:/data
@@ -86,12 +84,132 @@ Album IDs:
 ## Troubleshooting
 
 Make sure you can access your Immich API from inside the `immich-person-to-album` container. Run this command from outside the container, making sure to replace the address with your Immich server address:
-
 ```bash
 docker exec immich-person-to-album sh -c "wget -qO- http://192.168.0.20:2283/api/server/ping"
 ```
 
 It will return `{"res":"pong"}` if Immich is accessible to the `immich-person-to-album` container.
+
+---
+
+## Extended Features (Fork by laikenny)
+
+This fork adds support for advanced filtering operations including AND, OR, NOT, and exclusive filtering.
+
+### Supported Operations
+
+#### OR Operation (Default)
+Get photos with ANY of the specified persons:
+```json
+{
+  "description": "Either kid",
+  "personIds": ["person-a-id", "person-b-id"],
+  "operation": "OR",
+  "albumId": "album-id"
+}
+```
+
+#### AND Operation
+Get photos with ALL specified persons together:
+```json
+{
+  "description": "Both kids together",
+  "personIds": ["person-a-id", "person-b-id"],
+  "operation": "AND",
+  "albumId": "album-id"
+}
+```
+
+#### NOT Operation
+Exclude specific persons from results:
+```json
+{
+  "description": "Person A without Person B",
+  "personId": "person-a-id",
+  "excludePersonIds": ["person-b-id"],
+  "albumId": "album-id"
+}
+```
+
+#### Exclude Others
+Get photos with ONLY the specified persons (no one else in the photo):
+```json
+{
+  "description": "Family of 4 only - no one else",
+  "personIds": ["dad-id", "mom-id", "kid1-id", "kid2-id"],
+  "operation": "AND",
+  "excludeOthers": true,
+  "albumId": "album-id"
+}
+```
+
+### Combined Operations Examples
+
+**OR + NOT**: Photos with Person A or B, but not Person C
+```json
+{
+  "personIds": ["person-a-id", "person-b-id"],
+  "operation": "OR",
+  "excludePersonIds": ["person-c-id"],
+  "albumId": "album-id"
+}
+```
+
+**AND + NOT**: Photos with both Person A and B, but not Person C
+```json
+{
+  "personIds": ["person-a-id", "person-b-id"],
+  "operation": "AND",
+  "excludePersonIds": ["person-c-id"],
+  "albumId": "album-id"
+}
+```
+
+**Solo photos**: Just one person, no one else
+```json
+{
+  "personId": "person-a-id",
+  "excludeOthers": true,
+  "albumId": "album-id"
+}
+```
+
+**Parents-only date night photos**: Any parent but no kids
+```json
+{
+  "personIds": ["dad-id", "mom-id"],
+  "operation": "OR",
+  "excludeOthers": true,
+  "albumId": "album-id"
+}
+```
+
+### Configuration Options
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `description` | string | No | Human-readable description of this rule |
+| `personId` | string | Yes* | Single person ID (original syntax) |
+| `personIds` | array | Yes* | Array of person IDs for multi-person operations |
+| `operation` | string | No | `"OR"` (default) or `"AND"` |
+| `excludePersonIds` | array | No | Person IDs to exclude from results |
+| `excludeOthers` | boolean | No | If true, exclude all persons not in `personIds` |
+| `albumId` | string | Yes | Target album ID |
+
+*Either `personId` or `personIds` must be specified.
+
+### Limitations
+
+**Unsupported nested boolean operations:**
+- `(A && B) || (C && D)` - Cannot express "both A and B, OR both C and D"
+- `A && (B || C)` - Cannot express "A and either B or C"
+- `(A || B) && (C || D)` - Cannot express complex nested conditions
+
+These require nested boolean logic which is not currently supported. For most use cases, the combination of AND, OR, NOT, and excludeOthers operations should be sufficient.
+
+### Backward Compatibility
+
+All original configuration syntax remains fully supported. Existing configurations will continue to work without modification.
 
 ## Acknowledgements
 

@@ -11,7 +11,11 @@ export interface User {
 
 export interface Link {
   description?: string;
-  personId: string;
+  personId?: string;  // Single person (original behavior)
+  personIds?: string[];  // Multiple persons
+  operation?: 'OR' | 'AND';  // Operation type (defaults to OR for backward compatibility)
+  excludePersonIds?: string[];  // NOT operation
+  excludeOthers?: boolean;  // New: Exclude all other people not in personIds
   albumId: string;
   apiKeyShort: string;
 }
